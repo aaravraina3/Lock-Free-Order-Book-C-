@@ -37,10 +37,15 @@ public:
 
     // Enqueue at the tail (newest), preserving arrival order. Lock-free, MP-safe.
     bool add_order(Side side, Price price, Quantity quantity) {
-        int index = price_to_index(price);
+        return add_order_at(side, price_to_index(price), quantity);
+    }
+
+    // Same, but takes a precomputed price index (integer ticks), so the hot path
+    // skips the floating-point divide/round that price_to_index would do.
+    bool add_order_at(Side side, int index, Quantity quantity) {
         if (index < 0 || index >= MAX_PRICE_LEVELS) return false;
 
-        Order* node = m_pool.acquire(price, quantity, side);
+        Order* node = m_pool.acquire(index_to_price(index), quantity, side);
         if (!node) return false;
         node->next.store(TaggedPtr(0), std::memory_order_relaxed);
 
